@@ -1,0 +1,26 @@
+strictLaunch: true
+service:
+  type: NodePort  # This is needed for AWS ALB ingress to work
+serviceAccount:
+  allowClusterRolePrivileges: false
+image:
+  repository: gcr.io/vorvan/h2oai/steam-k8s-centos7-x86_64
+  pullPolicy: IfNotPresent
+  # Specified explicitely because of the use of pre-release chart.
+  tag: 1.9.0
+extraEnv:
+  # Disable Host Volumene mounts because mounting host volumen in cluster can expose whole cluster.
+  - name: DISABLE_STEAM_KUBERNETES_HOST_PATH_MOUNT
+    value: "1"
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/send-timeout: "3600"
+  hosts:
+    - host: steam.duo-cs-dev.h2o.ai # using route 53 dns record as above option
+      paths: ["/"]
