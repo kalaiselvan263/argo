@@ -1,0 +1,248 @@
+# H2O.ai
+#    ____     __                   _           ______
+#   / __/__  / /____ _______  ____(_)__ ___   / __/ /____ ___ ___ _
+#  / _// _ \/ __/ -_) __/ _ \/ __/ (_-</ -_) _\ \/ __/ -_) _ `/  ' \
+# /___/_//_/\__/\__/_/ / .__/_/ /_/___/\__/ /___/\__/\__/\_,_/_/_/_/
+# for Kubernetes
+
+#############
+## GENERAL ##
+#############
+
+# nameOverride -- If you need to override the name of the chart from 'enterprise-steam' to something else.
+#
+nameOverride: ""
+
+# fullnameOverride -- If you need override the fully qualified app name.
+#
+fullnameOverride: ""
+
+#####################
+## SERVICE ACCOUNT ##
+#####################
+##
+## Enterprise Steam needs certain privileges to access the Kubernetes cluster in order to launch and manage H2O.ai products
+## This Helm chart will grant Enterprise Steam application the required set of roles to function properly
+## You can provide your own ServiceAccount but that is not recommended as you will likely be missing the proper roles
+
+serviceAccount:
+  # serviceAccount.create -- Specifies whether a service account should be created.
+  # If you choose to provide an existing ServiceAccount make sure it has all necessary roles.
+  #
+  create: true
+
+  # serviceAccount.openshift -- Creates special apiGroups required in case of an OpenShift deployment.
+  #
+  openshift: false
+
+  # serviceAccount.openshiftResourceNames -- Configurable resourceNames for OpenShift apiGroups.
+  #
+  openshiftResourceNames: ["privileged"]
+
+  # serviceAccount.annotations -- Annotations to add to the created ServiceAccount.
+  #
+  annotations: {}
+
+  # serviceAccount.name -- The name of the service account to use.
+  # If not set and create is true, a name is generated.
+  #
+  name: ""
+
+  # serviceAccount.allowClusterRolePrivileges -- Set to grant Enterprise Steam read access to some cluster-wide resources.
+  # See rbac.tpl for detail on what RBAC privileges are granted.
+  #
+  allowClusterRolePrivileges: false
+
+#######################
+## PERSISTENT VOLUME ##
+#######################
+##
+## Enterprise Steam needs to persist data somewhere so they are not lost on restart
+## We will provision a new storage or you can provide an existing PersistentVolumeClaim
+
+persistentVolume:
+  # persistentVolume.resourcePolicy -- Setting it to "keep" to avoid removing PVCs during a helm delete
+  # operation. Leaving it empty will delete PVCs after the chart is deleted.
+  resourcePolicy: ""
+
+  # persistentVolume.existingClaim -- Set to use an existing PersistentVolumeClaim.
+  # If left empty, a new PersistentVolumeClaim will be created.
+  #
+  existingClaim: ""
+
+  # persistentVolume.annotations -- PersistentVolumeClaim annotations.
+  #
+  annotations: {}
+
+  # persistentVolume.accessModes -- PersistentVolume access modes.
+  # Must match those of existing PV or dynamic provisioner.
+  accessModes:
+    - ReadWriteOnce
+
+  # persistentVolume.size -- PersistentVolume Size.
+  #
+  size: 64Gi
+
+  # persistentVolume.storageClassName -- StorageClass name.
+  # If left empty, no storageClassName spec is set, choosing the default provisioner
+  # (gp2 on AWS, standard on GKE, etc..).
+  #
+  storageClassName: ""
+
+################
+## DEPLOYMENT ##
+################
+##
+## Finally, the Enterprise Steam deployment
+
+image:
+  # image.repository -- Application Docker repository.
+  #
+  repository: h2oai/enterprise-steam
+
+  # image.tag -- Application Docker tag / version.
+  # Defaults to the chart appVersion.
+  #
+  tag: ""
+
+  # image.pullPolicy -- Docker image pull policy.
+  #
+  pullPolicy: Always
+
+  # image.pullSecrets -- Optional list of references to secrets in the same namespace to use for pulling the image
+  #
+  pullSecrets: []
+  #  - name: myregistrykey
+
+# resources -- Resources requested for Enterprise Steam Pod.
+# Please adjust them as you like. Listed is the minimum spec.
+resources:
+  limits:
+    cpu: 2
+    memory: 8Gi
+  requests:
+    cpu: 2
+    memory: 8Gi
+
+# strictLaunch -- Optional flag to set strict launch for Steam.
+# If set to true, Steam pod launch will fail if OIDC or kubernetes services fail to initialize
+#
+strictLaunch: false
+
+# volumes -- Additional deployment Pod volumes.
+#
+volumes: []
+#  - name: my-volume
+#    persistentVolumeClaim:
+#      claimName: my-volume-claim
+
+# volumeMounts -- Deployment Pod volume mounts.
+#
+volumeMounts: []
+#  - mountPath: /tmp/my-volume
+#    name: my-volume-claim
+
+# podLabels -- Deployment Pod labels.
+#
+podLabels: {}
+
+# podAnnotations -- Deployment Pod annotations.
+#
+podAnnotations: {}
+
+# podSecurityContext -- Deployment/Pod security context.
+#
+podSecurityContext:
+  runAsUser: 955
+  runAsGroup: 955
+  fsGroup: 955
+
+# containerSecurityContext -- Container security context.
+#
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+
+# nodeSelector -- Deployment node selector.
+#
+nodeSelector: {}
+
+# tolerations -- Deployment tolerations.
+#
+tolerations: []
+
+# affinity -- Deployment affinity.
+#
+affinity: {}
+
+# extraEnv -- Extra 'env' passed to the container(s).
+#
+extraEnv: []
+
+# caCertificates -- Optional raw CA certificate PEM file to be added to the container.
+#
+caCertificates: ""
+
+#############
+## SERVICE ##
+#############
+##
+## Now you will need to route the traffic to to the Deployment
+## You may use the default ClusterIP type and route using an Ingress
+## Or opt in to use the LoadBalancer type with optional annotations based on your provider
+
+service:
+  # service.name -- Service name is user-configurable for maximum service discovery flexibility.
+  # Leave empty for default Service name.
+  #
+  name: ""
+
+  # service.type -- Service type.
+  #
+  type: ClusterIP
+
+  # service.loadBalancerIP -- LoadBalancer IP.
+  # Ignored if the type is not LoadBalancer or if the IP is empty string.
+  #
+  loadBalancerIP: ""
+
+  # service.annotations -- Service annotations.
+  # Includes example for use with LoadBalancer service type.
+  annotations: {}
+    # external-dns.alpha.kubernetes.io/hostname: enterprise-steam.cluster.local
+    # service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    # service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+
+  # service.port -- Service port.
+  #
+  port: 9555
+
+#############
+## INGRESS ##
+#############
+##
+## To route external traffic to Enterprise Steam you may use an Ingress
+
+ingress:
+  # ingress.enabled -- Ingress enabled.
+  #
+  enabled: false
+
+  # ingress.className -- IngressClass name
+  className: ""
+
+  # ingress.annotations -- Ingress annotations.
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+
+  # ingress.hosts -- Set Ingress host and paths.
+  hosts:
+    - host: enterprise-steam.cluster.local
+      paths: ["/"]
+
+  # ingress.tls -- Ingress TLS setting.
+  # Optionally enable TLS for Ingress.
+  tls: []
+  #  - secretName: enterprise-steam-tls
+  #    hosts:
+  #      - enterprise-steam.cluster.local
