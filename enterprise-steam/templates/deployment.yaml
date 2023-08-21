@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "enterprise-steam.fullname" . }}
+  labels:
+    {{- include "enterprise-steam.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "enterprise-steam.selectorLabels" . | nindent 6 }}
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+    {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "enterprise-steam.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "enterprise-steam.serviceAccountName" . }}
+      automountServiceAccountToken: true
+      {{- with .Values.podSecurityContext}}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: enterprise-steam
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: STEAM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: STEAM_STRICT_LAUNCH
+              value: "{{ .Values.strictLaunch }}"
+            {{- if .Values.extraEnv }}
+            {{- toYaml .Values.extraEnv | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: steam
+              containerPort: 9555
+              protocol: TCP
+          volumeMounts:
+            {{- with .Values.volumeMounts}}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.caCertificates }}
+            - name: ca-certificates
+              mountPath: /etc/ssl/certs/steam-ca-bundle.crt
+              subPath: steam-ca-bundle.crt
+            {{- end }}
+            - mountPath: /opt/h2oai/steam/data
+              name: enterprise-steam-data
+          {{- with .Values.containerSecurityContext}}
+          securityContext:
+            {{- toYaml . | nindent 14 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        {{- with .Values.volumes}}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.caCertificates }}
+        - name: ca-certificates
+          configMap:
+            name: {{ include "enterprise-steam.fullname" . }}-ca-certificates
+        {{- end }}
+        - name: enterprise-steam-data
+          persistentVolumeClaim:
+            {{- if .Values.persistentVolume.existingClaim }}
+            claimName: {{ .Values.persistentVolume.existingClaim }}
+            {{- else }}
+            claimName: {{ include "enterprise-steam.fullname" . }}
+            {{- end }}
